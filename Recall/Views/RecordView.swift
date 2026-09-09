@@ -35,7 +35,11 @@ struct RecordView: View {
                 }
             }
             .padding()
+            .padding(.bottom, 28)
             .navigationTitle("Gravar")
+            .sensoryFeedback(trigger: recorder.isRecording) { _, isRecording in
+                isRecording ? .impact(weight: .heavy) : .success
+            }
             .navigationDestination(item: $openedRecording) { recording in
                 RecordingDetailView(recording: recording)
             }

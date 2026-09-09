@@ -187,7 +187,7 @@ struct RecordingRow: View {
 
             HStack(spacing: 6) {
                 Text(recording.createdAt.formatted(date: .abbreviated, time: .shortened))
-                Text("·")
+                Text(verbatim: "·")
                 Text(DurationFormat.clock(recording.duration))
             }
             .font(.subheadline)

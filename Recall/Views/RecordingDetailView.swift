@@ -26,6 +26,12 @@ struct RecordingDetailView: View {
 
             transcriptSection
 
+            Section("Título") {
+                TextField("Título", text: $recording.title, axis: .vertical)
+                    .lineLimit(1...3)
+                    .onSubmit { try? modelContext.save() }
+            }
+
             Section("Detalhes") {
                 LabeledContent("Data", value: recording.createdAt.formatted(date: .long, time: .shortened))
                 LabeledContent("Duração", value: DurationFormat.clock(recording.duration))
@@ -39,12 +45,26 @@ struct RecordingDetailView: View {
                 Button("Excluir gravação", systemImage: "trash", role: .destructive) {
                     confirmingDelete = true
                 }
+                .tint(.red)
             }
         }
         .navigationTitle(recording.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                ShareLink(
+                    item: recording.markdownExport,
+                    preview: SharePreview(recording.title)
+                ) {
+                    Label("Compartilhar", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
         .task { load() }
-        .onDisappear { playback.stop() }
+        .onDisappear {
+            playback.stop()
+            try? modelContext.save()
+        }
         .confirmationDialog(
             "Excluir esta gravação?",
             isPresented: $confirmingDelete,

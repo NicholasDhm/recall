@@ -21,4 +21,13 @@ final class AppSettings {
     var transcriptionLocale: Locale {
         Locale(identifier: transcriptionLocaleIdentifier)
     }
+
+    /// The locales the app offers. Only those the transcriber actually supports on this
+    /// device are shown in Settings.
+    static let offeredLocaleIdentifiers = ["pt-BR", "en-US"]
+
+    static func displayName(for identifier: String) -> String {
+        Locale.current.localizedString(forIdentifier: identifier)?.capitalized
+            ?? identifier
+    }
 }

@@ -1,7 +1,366 @@
 {
   "sourceLanguage" : "pt-BR",
   "strings" : {
+    "7 dias" : {
 
+    },
+    "30 dias" : {
+
+    },
+    "A transcrição acontece no próprio iPhone. Nenhum áudio sai do aparelho." : {
+
+    },
+    "A transcrição ao vivo não está disponível agora." : {
+
+    },
+    "A transcrição aparece aqui enquanto você fala." : {
+
+    },
+    "A transcrição no aparelho não está disponível aqui. Ela funciona em um iPhone com iOS 26, não no simulador." : {
+
+    },
+    "A transcrição será feita depois da gravação." : {
+
+    },
+    "Abrir Ajustes" : {
+
+    },
+    "Acesso ao microfone negado." : {
+
+    },
+    "Ainda sem resumo para esta gravação." : {
+
+    },
+    "Ajustes" : {
+
+    },
+    "Analisando" : {
+
+    },
+    "Analisando a transcrição…" : {
+
+    },
+    "Análise" : {
+
+    },
+    "Apagar definitivamente" : {
+
+    },
+    "Apagar todas as gravações" : {
+
+    },
+    "Apagar todas as gravações?" : {
+
+    },
+    "Apagar tudo" : {
+
+    },
+    "Apple Intelligence" : {
+
+    },
+    "Armazenamento" : {
+
+    },
+    "Ative o Apple Intelligence nos Ajustes do iPhone para gerar resumos." : {
+
+    },
+    "Avançar 15 segundos" : {
+
+    },
+    "Baixado" : {
+
+    },
+    "Baixando" : {
+
+    },
+    "Baixando o modelo" : {
+
+    },
+    "Baixando o modelo de fala" : {
+
+    },
+    "Baixar modelo" : {
+
+    },
+    "Biblioteca" : {
+
+    },
+    "Buscar por título, transcrição ou tag" : {
+
+    },
+    "Cancelar" : {
+
+    },
+    "Compartilhar" : {
+
+    },
+    "Data" : {
+
+    },
+    "Detalhes" : {
+
+    },
+    "Dia" : {
+
+    },
+    "Dia mais ativo" : {
+
+    },
+    "Disponível" : {
+
+    },
+    "Duração" : {
+
+    },
+    "Duração média" : {
+
+    },
+    "Escolha um período maior para ver seus números." : {
+
+    },
+    "Espaço em disco" : {
+
+    },
+    "Este aparelho não é compatível com o Apple Intelligence." : {
+
+    },
+    "Este aparelho não reporta nenhum idioma de transcrição. No simulador isso é esperado; em um iPhone com iOS 26 os idiomas aparecem aqui." : {
+
+    },
+    "Excluir" : {
+
+    },
+    "Excluir esta gravação?" : {
+
+    },
+    "Excluir gravação" : {
+
+    },
+    "Falhou" : {
+
+    },
+    "Gravação de %@" : {
+
+    },
+    "Gravações" : {
+
+    },
+    "Gravações por semana" : {
+
+    },
+    "Gravar" : {
+
+    },
+    "Grave na aba Gravar ou importe um arquivo de áudio." : {
+
+    },
+    "Grave ou importe alguns áudios para ver seus números aqui." : {
+
+    },
+    "Horas" : {
+
+    },
+    "Idioma" : {
+
+    },
+    "Importar áudio" : {
+
+    },
+    "Indisponível" : {
+
+    },
+    "Iniciar gravação" : {
+
+    },
+    "Insights" : {
+
+    },
+    "Isso remove o áudio, as transcrições e as análises deste iPhone." : {
+
+    },
+    "Itens de ação" : {
+
+    },
+    "Média" : {
+
+    },
+    "Média %@ ppm" : {
+
+    },
+    "Microfone bloqueado" : {
+
+    },
+    "min" : {
+
+    },
+    "Minutos" : {
+
+    },
+    "Minutos gravados por dia" : {
+
+    },
+    "Modelo de fala" : {
+
+    },
+    "Na fila" : {
+
+    },
+    "Nada com esta tag" : {
+
+    },
+    "Nada neste período" : {
+
+    },
+    "Não baixado" : {
+
+    },
+    "Não disponível" : {
+
+    },
+    "Não foi possível gravar" : {
+
+    },
+    "Não foi possível importar" : {
+
+    },
+    "Não foi possível iniciar o áudio." : {
+
+    },
+    "Não há backup. Esta ação não pode ser desfeita." : {
+
+    },
+    "Nenhuma gravação" : {
+
+    },
+    "Nenhuma gravação marcada com “%@”." : {
+
+    },
+    "O Apple Intelligence não está disponível agora." : {
+
+    },
+    "O arquivo de áudio não foi encontrado." : {
+
+    },
+    "O áudio e a transcrição serão apagados deste iPhone." : {
+
+    },
+    "O idioma %@ não é suportado pela transcrição deste iPhone." : {
+
+    },
+    "O modelo de fala para %@ ainda não foi baixado." : {
+
+    },
+    "O modelo do Apple Intelligence ainda está sendo preparado. Tente de novo mais tarde." : {
+
+    },
+    "O Recall precisa do microfone para gravar. Libere o acesso nos Ajustes do iPhone." : {
+
+    },
+    "OK" : {
+
+    },
+    "Origem" : {
+
+    },
+    "Ouvindo…" : {
+
+    },
+    "Palavras" : {
+
+    },
+    "Palavras mais faladas" : {
+
+    },
+    "Palavras por minuto" : {
+
+    },
+    "Parar gravação" : {
+
+    },
+    "Pausar" : {
+
+    },
+    "Período" : {
+
+    },
+    "Posição da reprodução" : {
+
+    },
+    "Pronto" : {
+
+    },
+    "Reanalisar" : {
+
+    },
+    "Remover filtro" : {
+
+    },
+    "Remover o filtro da tag %@" : {
+
+    },
+    "Reproduzir" : {
+
+    },
+    "Sem dados ainda" : {
+
+    },
+    "Semana" : {
+
+    },
+    "Sobre" : {
+
+    },
+    "Status" : {
+
+    },
+    "Tag" : {
+
+    },
+    "Tags mais usadas" : {
+
+    },
+    "Tem certeza?" : {
+
+    },
+    "Tempo de gravação" : {
+
+    },
+    "Tentar de novo" : {
+
+    },
+    "Título" : {
+
+    },
+    "Toque numa tag para filtrar a Biblioteca." : {
+
+    },
+    "Toque para reproduzir a partir deste trecho" : {
+
+    },
+    "Transcrevendo" : {
+
+    },
+    "Transcrição" : {
+
+    },
+    "Transcrito" : {
+
+    },
+    "Tudo" : {
+
+    },
+    "Usado para gerar resumo, tags e itens de ação. Sem ele o app continua gravando e transcrevendo." : {
+
+    },
+    "Verificando…" : {
+
+    },
+    "Versão" : {
+
+    },
+    "Voltar 15 segundos" : {
+
+    }
   },
   "version" : "1.0"
 }
