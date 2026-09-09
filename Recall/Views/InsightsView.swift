@@ -13,208 +13,216 @@ struct InsightsView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if recordings.isEmpty {
-                    VStack(spacing: 0) {
-                        ScreenHeader("Insights")
-                        VStack(spacing: 14) {
-                            Image(systemName: "chart.bar")
-                                .font(.system(size: 44, weight: .light))
-                                .foregroundStyle(Color.accentColor)
-                            Text("Sem dados ainda")
-                                .font(.system(.title2, design: .rounded, weight: .semibold))
-                            Text("Grave ou importe alguns áudios para ver seus números aqui.")
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(40)
-                        Spacer()
-                    }
-                    .screenBackground()
-                } else {
-                    content(for: metrics)
-                }
+            ZStack {
+                Color.paper.ignoresSafeArea()
+                if recordings.isEmpty { empty } else { content(for: metrics) }
             }
             .navigationBarHidden(true)
+        }
+    }
+
+    private var empty: some View {
+        VStack(spacing: 0) {
+            PageTitle("Insights")
+            VStack(spacing: 10) {
+                Text("Sem dados ainda.")
+                    .font(.displaySmall)
+                    .foregroundStyle(Color.ink)
+                Text("Grave ou importe alguns áudios para ver seus números aqui.")
+                    .font(.uiMeta)
+                    .foregroundStyle(Color.inkSoft)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 40)
+            Spacer()
         }
     }
 
     private func content(for metrics: InsightsMetrics) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                ScreenHeader("Insights", subtitle: subtitle(for: metrics))
+                VStack(alignment: .leading, spacing: 0) {
+                    PageTitle(
+                        "Insights",
+                        subtitle: metrics.isEmpty
+                            ? String(localized: "Nada neste período")
+                            : String(localized: "\(metrics.totalRecordings) gravações no período")
+                    )
                     .padding(.horizontal, -Metrics.gutter)
 
-                PillPicker(
-                    options: InsightsPeriod.allCases.map { ($0, $0.title) },
-                    selection: $period
-                )
+                    UnderlinePicker(
+                        options: InsightsPeriod.allCases.map { ($0, $0.title) },
+                        selection: $period
+                    )
+                    .padding(.bottom, 30)
 
-                if metrics.isEmpty {
-                    ContentUnavailableView {
-                        Label("Nada neste período", systemImage: "calendar")
-                    } description: {
-                        Text("Escolha um período maior para ver seus números.")
+                    if metrics.isEmpty {
+                        Text("Escolha um período maior.")
+                            .font(.uiMeta)
+                            .foregroundStyle(Color.inkSoft)
+                    } else {
+                        figures(metrics).id("cards")
+                        section("Minutos por dia", id: "minutes") { minutesChart(metrics) }
+                        section("Gravações por semana", id: "weekly") { weeklyChart(metrics) }
+                        if !metrics.wordsPerMinute.isEmpty {
+                            section("Palavras por minuto", id: "wpm") { wordsChart(metrics) }
+                        }
+                        if !metrics.topTags.isEmpty {
+                            section("Tags", id: "tags") { tagsChart(metrics) }
+                        }
+                        if !metrics.topWords.isEmpty {
+                            section("Palavras mais faladas", id: "words") { wordList(metrics) }
+                        }
                     }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    summaryCards(metrics).id("cards")
-                    minutesChart(metrics).id("minutes")
-                    weeklyChart(metrics).id("weekly")
-                    wordsPerMinuteChart(metrics).id("wpm")
-                    tagsChart(metrics).id("tags")
-                    topWords(metrics).id("words")
                 }
-                }
-                .padding()
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.bottom, 40)
             }
-            .screenBackground()
+            .paperBackground()
             .onAppear {
                 #if DEBUG
-                if let anchor = LaunchOptions.insightsAnchor {
-                    proxy.scrollTo(anchor, anchor: .top)
-                }
+                if let anchor = LaunchOptions.insightsAnchor { proxy.scrollTo(anchor, anchor: .top) }
                 #endif
             }
         }
     }
 
-    private func subtitle(for metrics: InsightsMetrics) -> String {
-        metrics.isEmpty
-            ? String(localized: "Nada neste período")
-            : String(localized: "\(metrics.totalRecordings) gravações no período")
+    private func section<Content: View>(
+        _ title: String,
+        id: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Rule()
+            Marker(text: title).padding(.top, 4)
+            content()
+        }
+        .padding(.bottom, 34)
+        .id(id)
     }
 
-    private func summaryCards(_ metrics: InsightsMetrics) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            StatCard(title: "Gravações", value: metrics.totalRecordings.formatted())
-            StatCard(title: "Horas", value: hours(metrics.totalDuration))
-            StatCard(title: "Duração média", value: DurationFormat.clock(metrics.averageDuration))
-            StatCard(title: "Dia mais ativo", value: weekdayName(metrics.mostActiveWeekday))
+    /// Four numbers, set in serif and separated by rules. No boxes.
+    private func figures(_ metrics: InsightsMetrics) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                figure(metrics.totalRecordings.formatted(), "Gravações")
+                Rectangle().fill(Color.rule).frame(width: 0.5, height: 46)
+                figure((metrics.totalDuration / 3600).formatted(.number.precision(.fractionLength(1))), "Horas")
+            }
+            Rule().padding(.vertical, 18)
+            HStack(spacing: 0) {
+                figure(DurationFormat.clock(metrics.averageDuration), "Duração média")
+                Rectangle().fill(Color.rule).frame(width: 0.5, height: 46)
+                figure(weekdayName(metrics.mostActiveWeekday), "Dia mais ativo")
+            }
         }
+        .padding(.bottom, 34)
+    }
+
+    private func figure(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(value)
+                .font(.numeric(30))
+                .foregroundStyle(Color.ink)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Marker(text: label)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 2)
     }
 
     private func minutesChart(_ metrics: InsightsMetrics) -> some View {
-        ChartCard("Minutos gravados por dia") {
-            Chart(metrics.minutesPerDay) { point in
-                BarMark(
-                    x: .value("Dia", point.day, unit: .day),
-                    y: .value("Minutos", point.value)
-                )
-                .foregroundStyle(Color.accentColor)
-            }
-            .chartYAxisLabel("min")
-            .frame(height: 180)
+        Chart(metrics.minutesPerDay) { point in
+            BarMark(x: .value("Dia", point.day, unit: .day), y: .value("Minutos", point.value))
+                .foregroundStyle(Color.ember)
         }
+        .chartPlotStyle { $0.background(Color.clear) }
+        .frame(height: 150)
     }
 
     private func weeklyChart(_ metrics: InsightsMetrics) -> some View {
-        ChartCard("Gravações por semana") {
-            Chart(metrics.recordingsPerWeek) { point in
-                BarMark(
-                    x: .value("Semana", point.day, unit: .weekOfYear),
-                    y: .value("Gravações", point.value)
-                )
-                .foregroundStyle(Color.accentColor)
-            }
-            .frame(height: 160)
+        Chart(metrics.recordingsPerWeek) { point in
+            BarMark(x: .value("Semana", point.day, unit: .weekOfYear), y: .value("Gravações", point.value))
+                .foregroundStyle(Color.ember)
         }
+        .frame(height: 130)
     }
 
-    @ViewBuilder
-    private func wordsPerMinuteChart(_ metrics: InsightsMetrics) -> some View {
-        if !metrics.wordsPerMinute.isEmpty {
-            ChartCard("Palavras por minuto") {
-                Chart {
-                    ForEach(metrics.wordsPerMinute) { point in
-                        LineMark(
-                            x: .value("Data", point.day),
-                            y: .value("Palavras por minuto", point.value)
-                        )
-                        .foregroundStyle(Color.accentColor)
-                        PointMark(
-                            x: .value("Data", point.day),
-                            y: .value("Palavras por minuto", point.value)
-                        )
-                        .foregroundStyle(Color.accentColor)
-                    }
-                    RuleMark(y: .value("Média", metrics.averageWordsPerMinute))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .foregroundStyle(.secondary)
-                        .annotation(position: .top, alignment: .leading) {
-                            Text("Média \(metrics.averageWordsPerMinute, format: .number.precision(.fractionLength(0))) ppm")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
+    private func wordsChart(_ metrics: InsightsMetrics) -> some View {
+        Chart {
+            ForEach(metrics.wordsPerMinute) { point in
+                LineMark(x: .value("Data", point.day), y: .value("Palavras por minuto", point.value))
+                    .foregroundStyle(Color.ember)
+                    .interpolationMethod(.catmullRom)
+            }
+            RuleMark(y: .value("Média", metrics.averageWordsPerMinute))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                .foregroundStyle(Color.inkFaint)
+                .annotation(position: .top, alignment: .leading) {
+                    Text("média \(metrics.averageWordsPerMinute, format: .number.precision(.fractionLength(0))) ppm")
+                        .font(.caption2)
+                        .foregroundStyle(Color.inkSoft)
                 }
-                .frame(height: 180)
-            }
         }
+        .frame(height: 150)
     }
 
-    @ViewBuilder
     private func tagsChart(_ metrics: InsightsMetrics) -> some View {
-        if !metrics.topTags.isEmpty {
-            ChartCard("Tags mais usadas") {
-                Chart(metrics.topTags) { tag in
-                    BarMark(
-                        x: .value("Gravações", tag.count),
-                        y: .value("Tag", tag.name)
-                    )
-                    .foregroundStyle(Color.accentColor)
-                }
-                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
-                .frame(height: CGFloat(metrics.topTags.count) * 28 + 24)
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(.clear)
-                            .contentShape(Rectangle())
-                            .onTapGesture { location in
-                                guard let plot = proxy.plotFrame else { return }
-                                let y = location.y - geometry[plot].origin.y
-                                if let tag: String = proxy.value(atY: y) {
-                                    navigation.showLibrary(taggedWith: tag)
-                                }
-                            }
+        VStack(spacing: 0) {
+            ForEach(metrics.topTags) { tag in
+                Button {
+                    navigation.showLibrary(taggedWith: tag.name)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(tag.name)
+                            .font(.system(.subheadline))
+                            .foregroundStyle(Color.ink)
+                            .frame(width: 110, alignment: .leading)
+                            .lineLimit(1)
+                        GeometryReader { proxy in
+                            let maximum = metrics.topTags.map(\.count).max() ?? 1
+                            Capsule()
+                                .fill(Color.ember.opacity(0.9))
+                                .frame(
+                                    width: proxy.size.width * CGFloat(tag.count) / CGFloat(maximum),
+                                    height: 6
+                                )
+                                .frame(maxHeight: .infinity, alignment: .center)
+                        }
+                        .frame(height: 20)
+                        Text(tag.count.formatted())
+                            .font(.system(.caption, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(Color.inkSoft)
                     }
+                    .padding(.vertical, 6)
                 }
-                Text("Toque numa tag para filtrar a Biblioteca.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Filtra a Biblioteca por esta tag"))
             }
         }
     }
 
-    @ViewBuilder
-    private func topWords(_ metrics: InsightsMetrics) -> some View {
-        if !metrics.topWords.isEmpty {
-            ChartCard("Palavras mais faladas") {
-                VStack(spacing: 0) {
-                    ForEach(Array(metrics.topWords.enumerated()), id: \.element.id) { index, word in
-                        HStack {
-                            Text(word.name)
-                                .font(.system(.body, design: .rounded))
-                            Spacer()
-                            Text(word.count.formatted())
-                                .font(.system(.body, design: .rounded, weight: .medium))
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 7)
-                        if index < metrics.topWords.count - 1 {
-                            Divider()
-                        }
-                    }
+    private func wordList(_ metrics: InsightsMetrics) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(metrics.topWords.enumerated()), id: \.element.id) { index, word in
+                if index > 0 { Rule() }
+                HStack {
+                    Text(word.name)
+                        .font(.readingSmall)
+                        .foregroundStyle(Color.ink)
+                    Spacer()
+                    Text(word.count.formatted())
+                        .font(.system(.footnote, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.inkFaint)
                 }
+                .padding(.vertical, 10)
             }
         }
-    }
-
-    private func hours(_ duration: TimeInterval) -> String {
-        (duration / 3600).formatted(.number.precision(.fractionLength(1)))
     }
 
     private func weekdayName(_ weekday: Int?) -> String {
@@ -222,45 +230,5 @@ struct InsightsView: View {
         let symbols = Calendar.current.standaloneWeekdaySymbols
         guard symbols.indices.contains(weekday - 1) else { return "—" }
         return symbols[weekday - 1].capitalized
-    }
-}
-
-private struct StatCard: View {
-    let title: LocalizedStringKey
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(value)
-                .font(.system(.title2, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Text(title)
-                .font(.meta)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .surfaceCard(padding: 14)
-    }
-}
-
-private struct ChartCard<Content: View>: View {
-    let title: LocalizedStringKey
-    @ViewBuilder let content: Content
-
-    init(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.cardTitle)
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .surfaceCard()
     }
 }

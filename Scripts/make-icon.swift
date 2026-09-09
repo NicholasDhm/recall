@@ -26,8 +26,8 @@ let bounds = CGRect(x: 0, y: 0, width: size, height: size)
 let gradient = CGGradient(
     colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
     colors: [
-        CGColor(red: 0.192, green: 0.204, blue: 0.400, alpha: 1),
-        CGColor(red: 0.290, green: 0.302, blue: 0.541, alpha: 1)
+        CGColor(red: 0.086, green: 0.078, blue: 0.071, alpha: 1),
+        CGColor(red: 0.161, green: 0.145, blue: 0.133, alpha: 1)
     ] as CFArray,
     locations: [0, 1]
 )!
@@ -46,7 +46,7 @@ let totalWidth = CGFloat(heights.count) * barWidth + CGFloat(heights.count - 1) 
 let maxHeight = size * 0.46
 var x = (size - totalWidth) / 2
 
-context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+context.setFillColor(CGColor(red: 0.859, green: 0.427, blue: 0.220, alpha: 1))
 for height in heights {
     let barHeight = maxHeight * height
     let rect = CGRect(x: x, y: (size - barHeight) / 2, width: barWidth, height: barHeight)

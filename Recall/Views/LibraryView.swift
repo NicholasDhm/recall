@@ -29,23 +29,15 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            Group {
+            ZStack {
+                Color.paper.ignoresSafeArea()
+
                 if recordings.isEmpty {
                     VStack(spacing: 0) {
-                        ScreenHeader("Biblioteca")
+                        PageTitle("Biblioteca")
                         emptyLibrary
                         Spacer()
                     }
-                    .screenBackground()
-                } else if filtered.isEmpty {
-                    List {
-                        listHeader
-                        emptyResult
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                    }
-                    .listStyle(.plain)
-                    .screenBackground()
                 } else {
                     timeline
                 }
@@ -92,73 +84,56 @@ struct LibraryView: View {
         }
     }
 
-    // MARK: - Timeline
-
-    /// Header and search ride inside the list so they scroll with it, while the rows
-    /// keep their swipe actions.
-    @ViewBuilder
-    private var listHeader: some View {
-        ScreenHeader(title: "Biblioteca", subtitle: subtitle) {
-            Button("Importar áudio", systemImage: "square.and.arrow.down") { isImporting = true }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.glass)
-        }
-        .padding(.horizontal, -Metrics.gutter)
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: Metrics.gutter, bottom: 0, trailing: Metrics.gutter))
-
-        SearchField(text: $query)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 0, leading: Metrics.gutter, bottom: 12, trailing: Metrics.gutter))
-    }
-
-    private var subtitle: String {
-        let count = recordings.count
-        let total = recordings.reduce(0) { $0 + $1.duration }
-        return String(localized: "\(count) gravações · \(DurationFormat.clock(total))")
-    }
-
     private var timeline: some View {
         List {
-            listHeader
-
-            if let tag = navigation.libraryTag {
-                Button {
-                    navigation.libraryTag = nil
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(tag)
-                        Image(systemName: "xmark.circle.fill")
+            Group {
+                PageTitle(title: "Biblioteca", subtitle: subtitle) {
+                    Button {
+                        isImporting = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(Color.ink)
                     }
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .accessibilityLabel(Text("Importar áudio"))
                 }
-                .buttonStyle(.glass)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: Metrics.gutter, bottom: 4, trailing: Metrics.gutter))
-                .accessibilityLabel(Text("Remover o filtro da tag \(tag)"))
+                .padding(.horizontal, -Metrics.gutter)
+
+                SearchField(text: $query)
+                    .padding(.bottom, 8)
+
+                if let tag = navigation.libraryTag {
+                    Button {
+                        navigation.libraryTag = nil
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(tag).font(.system(.subheadline, weight: .medium))
+                            Image(systemName: "xmark").font(.caption2)
+                        }
+                        .foregroundStyle(Color.ember)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 10)
+                    .accessibilityLabel(Text("Remover o filtro da tag \(tag)"))
+                }
+
+                if filtered.isEmpty { emptyResult }
             }
+            .plainRow()
 
             ForEach(groups, id: \.group) { section in
                 Section {
-                    ForEach(section.items) { recording in
-                        Button {
-                            path.append(recording)
-                        } label: {
-                            RecordingCard(recording: recording)
+                    ForEach(Array(section.items.enumerated()), id: \.element.id) { index, recording in
+                        VStack(spacing: 0) {
+                            if index > 0 { Rule() }
+                            Button {
+                                path.append(recording)
+                            } label: {
+                                RecordingEntry(recording: recording)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: Metrics.card, style: .continuous)
-                                .fill(Color(.secondarySystemGroupedBackground))
-                                .padding(.vertical, 4)
-                        )
-                        .listRowInsets(
-                            EdgeInsets(top: 4, leading: Metrics.gutter, bottom: 4, trailing: Metrics.gutter)
-                        )
+                        .plainRow()
                         .swipeActions(edge: .trailing) {
                             Button("Excluir", systemImage: "trash", role: .destructive) {
                                 pendingDeletion = recording
@@ -166,52 +141,51 @@ struct LibraryView: View {
                         }
                     }
                 } header: {
-                    Text(section.group.title)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                    Marker(text: section.group.title)
                         .textCase(nil)
-                        .padding(.leading, 4)
+                        .padding(.top, 22)
+                        .padding(.bottom, 6)
+                        .plainRow()
                 }
             }
         }
         .listStyle(.plain)
         .listSectionSeparator(.hidden)
-        .screenBackground()
+        .environment(\.defaultMinListRowHeight, 0)
+        .paperBackground()
     }
 
-    // MARK: - Empty states
+    private var subtitle: String {
+        let total = recordings.reduce(0) { $0 + $1.duration }
+        return String(localized: "\(recordings.count) gravações · \(DurationFormat.clock(total))")
+    }
 
     private var emptyLibrary: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "waveform")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(Color.accentColor)
-            Text("Nenhuma gravação")
-                .font(.system(.title2, design: .rounded, weight: .semibold))
-            Text("Grave na aba Gravar ou traga um áudio que já existe.")
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 12) {
+            Text("Nada gravado ainda.")
+                .font(.displaySmall)
+                .foregroundStyle(Color.ink)
+            Text("Grave na aba Gravar, ou traga um áudio que já existe.")
+                .font(.uiMeta)
+                .foregroundStyle(Color.inkSoft)
                 .multilineTextAlignment(.center)
-            Button("Importar áudio", systemImage: "square.and.arrow.down") { isImporting = true }
-                .buttonStyle(.glassProminent)
-                .padding(.top, 4)
+            Button("Importar áudio") { isImporting = true }
+                .font(.system(.subheadline, weight: .semibold))
+                .foregroundStyle(Color.ember)
+                .padding(.top, 6)
         }
-        .padding(40)
+        .padding(.horizontal, 40)
+        .padding(.top, 40)
     }
 
     private var emptyResult: some View {
-        VStack(spacing: 10) {
-            Text(navigation.libraryTag == nil ? "Nada encontrado" : "Nada com esta tag")
-                .font(.system(.title3, design: .rounded, weight: .semibold))
-            if let tag = navigation.libraryTag {
-                Button("Remover filtro “\(tag)”") { navigation.libraryTag = nil }
-                    .buttonStyle(.glass)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Text(navigation.libraryTag == nil ? "Nada encontrado." : "Nada com esta tag.")
+                .font(.displaySmall)
+                .foregroundStyle(Color.ink)
         }
-        .padding(40)
+        .padding(.top, 30)
     }
-
-    // MARK: - Actions
 
     private var deletionBinding: Binding<Bool> {
         Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } })
@@ -251,85 +225,97 @@ struct LibraryView: View {
     }
 }
 
-struct RecordingCard: View {
+private extension View {
+    /// Strips every piece of `List` chrome so rows sit directly on the paper.
+    func plainRow() -> some View {
+        self
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 0, leading: Metrics.gutter, bottom: 0, trailing: Metrics.gutter))
+    }
+}
+
+struct RecordingEntry: View {
     let recording: Recording
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             Text(recording.title)
-                .font(.cardTitle)
+                .font(.displaySmall)
+                .foregroundStyle(Color.ink)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 if recording.source == .imported {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.caption2)
+                    Image(systemName: "arrow.down").font(.system(size: 9, weight: .semibold))
                 }
                 Text(recording.createdAt, format: .dateTime.hour().minute())
                 Text(verbatim: "·")
-                Text(DurationFormat.clock(recording.duration))
-                    .monospacedDigit()
+                Text(DurationFormat.clock(recording.duration)).monospacedDigit()
                 if let notice = recording.statusNotice {
                     Text(verbatim: "·")
                     Text(notice)
                 }
             }
-            .font(.meta)
-            .foregroundStyle(recording.status == .failed ? Color.red : Color.secondary)
+            .font(.uiMeta)
+            .foregroundStyle(recording.status == .failed ? Color.ember : Color.inkSoft)
 
             if let summary = recording.summary, !summary.isEmpty {
                 Text(summary)
-                    .font(.system(.subheadline, design: .default))
-                    .foregroundStyle(.secondary)
+                    .font(.readingSmall)
+                    .foregroundStyle(Color.inkSoft)
                     .lineLimit(2)
-                    .lineSpacing(2)
+                    .lineSpacing(3)
+                    .padding(.top, 1)
             }
 
             if !recording.tags.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(recording.tags.prefix(3), id: \.self) { Chip(text: $0) }
                 }
-                .padding(.top, 2)
+                .padding(.top, 3)
             }
         }
-        .padding(4)
+        .padding(.vertical, 18)
         .contentShape(Rectangle())
     }
 }
 
-/// Glass search pill. `.searchable` renders the system search bar, which is the most
-/// recognisably "stock iOS" chrome on the screen.
+/// Quiet search line. `.searchable` renders the system search bar, the most
+/// recognisably stock chrome on the screen.
 private struct SearchField: View {
     @Binding var text: String
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 8) {
+            HStack(spacing: 9) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.inkFaint)
 
-            TextField("Buscar por título, transcrição ou tag", text: $text)
-                .font(.system(.subheadline, design: .rounded))
-                .textFieldStyle(.plain)
-                .focused($isFocused)
-                .submitLabel(.search)
+                TextField("Buscar", text: $text)
+                    .font(.system(.subheadline))
+                    .foregroundStyle(Color.ink)
+                    .textFieldStyle(.plain)
+                    .focused($isFocused)
+                    .submitLabel(.search)
 
-            if !text.isEmpty {
-                Button {
-                    text = ""
-                    isFocused = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                if !text.isEmpty {
+                    Button {
+                        text = ""
+                        isFocused = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.inkFaint)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Limpar busca"))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Limpar busca"))
             }
+            Rule()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .glassEffect(.regular, in: Capsule())
     }
 }

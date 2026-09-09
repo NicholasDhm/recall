@@ -20,21 +20,18 @@ struct RecordView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                backdrop
+                Color.paper.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    statusBar
+                    marker
                     LiveTranscript(live: live, isRecording: recorder.isRecording)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, Metrics.gutter)
 
                 controls
             }
             .navigationBarHidden(true)
-            .navigationDestination(item: $openedRecording) { recording in
-                RecordingDetailView(recording: recording)
-            }
+            .navigationDestination(item: $openedRecording) { RecordingDetailView(recording: $0) }
             .task {
                 await speechModel.refresh(for: settings.transcriptionLocale)
                 #if DEBUG
@@ -52,107 +49,83 @@ struct RecordView: View {
         }
     }
 
-    // MARK: - Backdrop
-
-    private var backdrop: some View {
-        LinearGradient(
-            colors: [Color.accentColor.opacity(recorder.isRecording ? 0.16 : 0), .clear],
-            startPoint: .bottom,
-            endPoint: .center
-        )
-        .ignoresSafeArea()
-        .animation(.easeInOut(duration: 0.6), value: recorder.isRecording)
-    }
-
-    // MARK: - Status
-
-    private var statusBar: some View {
-        HStack(spacing: 8) {
+    private var marker: some View {
+        HStack(spacing: 7) {
             if recorder.isRecording {
                 Circle()
-                    .fill(.red)
-                    .frame(width: 8, height: 8)
-                    .opacity(pulse && !reduceMotion ? 0.3 : 1)
+                    .fill(Color.ember)
+                    .frame(width: 6, height: 6)
+                    .opacity(pulse && !reduceMotion ? 0.25 : 1)
                     .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.7).repeatForever(autoreverses: true),
+                        reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
                         value: pulse
                     )
-                Text("Gravando")
+                Marker(text: String(localized: "Gravando"))
             } else {
-                Text(Date.now, format: .dateTime.weekday(.wide).day().month(.wide))
+                Marker(text: Date.now.formatted(.dateTime.weekday(.abbreviated).day().month(.wide)))
             }
             Spacer()
         }
-        .font(.meta)
-        .foregroundStyle(recorder.isRecording ? Color.primary : Color.secondary)
-        .padding(.top, 8)
-        .padding(.bottom, 20)
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.top, 14)
+        .padding(.bottom, 26)
     }
 
-    // MARK: - Controls
-
     private var controls: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 0) {
             if speechModel.needsDownload || speechModel.isInstalling {
-                modelBanner
+                modelNotice
+                Rule().padding(.horizontal, Metrics.gutter)
             }
 
-            VStack(spacing: 10) {
-                Waveform(recorder: recorder)
-                    .frame(height: recorder.isRecording ? 52 : 22)
+            Waveform(recorder: recorder)
+                .frame(height: recorder.isRecording ? 46 : 18)
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.top, 22)
 
-                if recorder.isRecording {
-                    Text(DurationFormat.clock(recorder.elapsed))
-                        .font(.timer(40))
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                        .animation(.snappy, value: recorder.elapsed)
-                        .transition(.opacity.combined(with: .blurReplace))
-                }
-            }
+            Text(recorder.isRecording ? DurationFormat.clock(recorder.elapsed) : " ")
+                .font(.numeric(34))
+                .monospacedDigit()
+                .foregroundStyle(Color.ink)
+                .contentTransition(.numericText())
+                .animation(.snappy, value: recorder.elapsed)
+                .padding(.top, 14)
 
             if permission == .denied {
                 deniedNotice
             } else {
-                recordButton
+                recordButton.padding(.top, 16)
             }
         }
-        .padding(.horizontal, Metrics.gutter)
-        .padding(.bottom, 28)
+        .padding(.bottom, 26)
         .animation(.smooth(duration: 0.35), value: recorder.isRecording)
     }
 
-    private var modelBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "arrow.down.circle")
-                .font(.title3)
-                .foregroundStyle(Color.accentColor)
-
-            VStack(alignment: .leading, spacing: 2) {
+    private var modelNotice: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Transcrição ao vivo indisponível")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .font(.uiLabel)
+                    .foregroundStyle(Color.ink)
                 Text(speechModel.isInstalling
-                     ? "Baixando a voz \(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier))…"
-                     : "Baixe a voz \(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier)) para ver o texto enquanto fala.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                     ? String(localized: "Baixando a voz… \(Int(speechModel.progress * 100))%")
+                     : String(localized: "Baixe a voz \(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier)) para ver o texto enquanto fala."))
+                    .font(.uiMeta)
+                    .foregroundStyle(Color.inkSoft)
             }
-
             Spacer(minLength: 0)
-
             if speechModel.isInstalling {
-                ProgressView(value: speechModel.progress)
-                    .progressViewStyle(.circular)
+                ProgressView().tint(Color.ember)
             } else {
                 Button("Baixar") {
                     Task { await speechModel.install(for: settings.transcriptionLocale) }
                 }
-                .buttonStyle(.glass)
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .font(.system(.subheadline, weight: .semibold))
+                .foregroundStyle(Color.ember)
             }
         }
-        .padding(14)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Metrics.control, style: .continuous))
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.bottom, 16)
     }
 
     private var recordButton: some View {
@@ -161,26 +134,26 @@ struct RecordView: View {
         } label: {
             ZStack {
                 Circle()
-                    .stroke(Color.accentColor.opacity(0.3), lineWidth: 2)
-                    .frame(width: 92, height: 92)
-                    .scaleEffect(recorder.isRecording && !reduceMotion && pulse ? 1.22 : 1)
+                    .stroke(Color.ember.opacity(0.35), lineWidth: 1.5)
+                    .frame(width: 88, height: 88)
+                    .scaleEffect(recorder.isRecording && !reduceMotion && pulse ? 1.28 : 1)
                     .opacity(recorder.isRecording && !reduceMotion && pulse ? 0 : 1)
                     .animation(
                         reduceMotion || !recorder.isRecording
                             ? nil
-                            : .easeOut(duration: 1.6).repeatForever(autoreverses: false),
+                            : .easeOut(duration: 1.8).repeatForever(autoreverses: false),
                         value: pulse
                     )
 
                 Circle()
-                    .fill(.thinMaterial)
-                    .frame(width: 92, height: 92)
+                    .stroke(Color.rule, lineWidth: 1)
+                    .frame(width: 88, height: 88)
 
-                RoundedRectangle(cornerRadius: recorder.isRecording ? 9 : 38, style: .continuous)
-                    .fill(Color.accentColor)
+                RoundedRectangle(cornerRadius: recorder.isRecording ? 7 : 34, style: .continuous)
+                    .fill(Color.ember)
                     .frame(
-                        width: recorder.isRecording ? 34 : 76,
-                        height: recorder.isRecording ? 34 : 76
+                        width: recorder.isRecording ? 30 : 68,
+                        height: recorder.isRecording ? 30 : 68
                     )
             }
         }
@@ -192,15 +165,17 @@ struct RecordView: View {
     private var deniedNotice: some View {
         VStack(spacing: 10) {
             Text("O Recall precisa do microfone para gravar.")
-                .font(.system(.subheadline, design: .rounded))
+                .font(.uiMeta)
+                .foregroundStyle(Color.inkSoft)
                 .multilineTextAlignment(.center)
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 Link("Abrir Ajustes", destination: url)
-                    .buttonStyle(.glassProminent)
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Color.ember)
             }
         }
-        .padding(16)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Metrics.control, style: .continuous))
+        .padding(.top, 16)
+        .padding(.horizontal, Metrics.gutter)
     }
 
     private var errorBinding: Binding<Bool> {
@@ -210,11 +185,7 @@ struct RecordView: View {
     // MARK: - Actions
 
     private func toggle() async {
-        if recorder.isRecording {
-            await finish()
-        } else {
-            await begin()
-        }
+        if recorder.isRecording { await finish() } else { await begin() }
     }
 
     private func begin() async {
@@ -275,60 +246,50 @@ struct RecordView: View {
     }
 }
 
-/// Kept separate so partial transcription results invalidate only this subtree.
+/// Kept separate so partial results invalidate only this subtree.
 private struct LiveTranscript: View {
     let live: LiveTranscriber
     let isRecording: Bool
 
-    /// Lets the idle placeholder centre itself in the space the scroll view was given.
-    private var minHeight: CGFloat { live.finalizedText.isEmpty ? 380 : 0 }
+    private var isEmpty: Bool { live.finalizedText.isEmpty && live.volatileText.isEmpty }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 14) {
                     if let reason = live.unavailableReason, isRecording {
-                        // Surfaced rather than swallowed: without this a failed live pass
-                        // looks identical to a microphone that heard nothing.
-                        Label(reason, systemImage: "text.badge.xmark")
-                            .font(.system(.footnote, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .padding(.bottom, 4)
+                        // Surfaced rather than swallowed: a failed live pass would
+                        // otherwise look identical to a microphone that heard nothing.
+                        Text(reason)
+                            .font(.uiMeta)
+                            .foregroundStyle(Color.inkSoft)
                     }
 
-                    if live.finalizedText.isEmpty && live.volatileText.isEmpty {
+                    if isEmpty {
                         Spacer(minLength: 0)
-                        Text(placeholder)
-                            .font(.transcript)
-                            .foregroundStyle(.tertiary)
+                        Text(isRecording
+                             ? String(localized: "Ouvindo…")
+                             : String(localized: "Toque e fale."))
+                            .font(.reading)
+                            .foregroundStyle(Color.inkFaint)
                             .frame(maxWidth: .infinity, alignment: isRecording ? .leading : .center)
-                            .multilineTextAlignment(isRecording ? .leading : .center)
-                            .padding(.horizontal, 24)
                         Spacer(minLength: 0)
                     } else {
-                        // Concatenated so the not-yet-final words flow inline, dimmed.
-                        (Text(live.finalizedText).font(.transcript)
+                        (Text(live.finalizedText).foregroundColor(Color.ink)
                             + Text(live.volatileText.isEmpty ? "" : " " + live.volatileText)
-                                .font(.transcript)
-                                .foregroundColor(.secondary))
-                            .lineSpacing(6)
+                                .foregroundColor(Color.inkFaint))
+                            .font(.reading)
+                            .lineSpacing(9)
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
-                .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: isEmpty ? 340 : 0, alignment: .leading)
+                .padding(.horizontal, Metrics.gutter)
                 .textSelection(.enabled)
             }
             .scrollIndicators(.hidden)
             .onChange(of: live.finalizedText) { scroll(proxy) }
             .onChange(of: live.volatileText) { scroll(proxy) }
-        }
-    }
-
-    private var placeholder: String {
-        if isRecording {
-            String(localized: "Ouvindo…")
-        } else {
-            String(localized: "Toque no botão e fale. O texto aparece aqui.")
         }
     }
 

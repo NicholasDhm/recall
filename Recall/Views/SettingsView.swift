@@ -14,184 +14,159 @@ struct SettingsView: View {
     @State private var confirmingDeleteAllAgain = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                ScreenHeader("Ajustes", subtitle: "Tudo fica neste iPhone")
-                    .padding(.horizontal, -Metrics.gutter)
+        NavigationStack {
+            ZStack {
+                Color.paper.ignoresSafeArea()
 
-                transcription
-                intelligence
-                storage
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        PageTitle("Ajustes", subtitle: String(localized: "Tudo fica neste iPhone"))
+                            .padding(.horizontal, -Metrics.gutter)
 
-                Text("Recall \(versionString)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 4)
-            }
-            .padding(.horizontal, Metrics.gutter)
-            .padding(.bottom, 32)
-        }
-        .screenBackground()
-        .task { await refresh() }
-        .onChange(of: settings.transcriptionLocaleIdentifier) {
-            Task { await speechModel.refresh(for: settings.transcriptionLocale) }
-        }
-        .confirmationDialog(
-            "Apagar todas as gravações?",
-            isPresented: $confirmingDeleteAll,
-            titleVisibility: .visible
-        ) {
-            Button("Apagar tudo", role: .destructive) { confirmingDeleteAllAgain = true }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Isso remove o áudio, as transcrições e as análises deste iPhone.")
-        }
-        .alert("Tem certeza?", isPresented: $confirmingDeleteAllAgain) {
-            Button("Apagar definitivamente", role: .destructive) { deleteEverything() }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Não há backup. Esta ação não pode ser desfeita.")
-        }
-    }
+                        group("Transcrição") {
+                            PlainRow(label: String(localized: "Idioma")) {
+                                if availableLocales.isEmpty {
+                                    Text(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier))
+                                } else {
+                                    Menu {
+                                        Picker("Idioma", selection: $settings.transcriptionLocaleIdentifier) {
+                                            ForEach(availableLocales, id: \.identifier) { locale in
+                                                Text(AppSettings.displayName(for: locale.identifier(.bcp47)))
+                                                    .tag(locale.identifier(.bcp47))
+                                            }
+                                        }
+                                    } label: {
+                                        Text(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier))
+                                            .foregroundStyle(Color.ember)
+                                    }
+                                }
+                            }
+                            Rule()
+                            PlainRow(label: String(localized: "Modelo de voz")) {
+                                Text(speechModel.label)
+                            }
 
-    // MARK: - Groups
+                            if speechModel.isInstalling {
+                                HStack(spacing: 12) {
+                                    ProgressView(value: speechModel.progress).tint(Color.ember)
+                                    Text("\(Int(speechModel.progress * 100))%")
+                                        .font(.uiMeta)
+                                        .foregroundStyle(Color.inkSoft)
+                                }
+                                .padding(.bottom, 14)
+                            } else if speechModel.needsDownload {
+                                Button("Baixar modelo") {
+                                    Task { await speechModel.install(for: settings.transcriptionLocale) }
+                                }
+                                .font(.system(.subheadline, weight: .semibold))
+                                .foregroundStyle(Color.ember)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.bottom, 14)
+                            }
 
-    private var transcription: some View {
-        CardGroup(
-            title: "Transcrição",
-            footnote: "O áudio é transcrito no próprio iPhone. Nada sai do aparelho."
-        ) {
-            CardRow(label: "Idioma") {
-                if availableLocales.isEmpty {
-                    Text(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier))
-                } else {
-                    Menu {
-                        Picker("Idioma", selection: $settings.transcriptionLocaleIdentifier) {
-                            ForEach(availableLocales, id: \.identifier) { locale in
-                                Text(AppSettings.displayName(for: locale.identifier(.bcp47)))
-                                    .tag(locale.identifier(.bcp47))
+                            if let error = speechModel.error {
+                                Text(error)
+                                    .font(.uiMeta)
+                                    .foregroundStyle(Color.inkSoft)
+                                    .padding(.bottom, 14)
+                            }
+
+                            note("O áudio é transcrito no próprio iPhone. Nada sai do aparelho.")
+                        }
+
+                        group("Apple Intelligence") {
+                            PlainRow(label: String(localized: "Status")) {
+                                HStack(spacing: 7) {
+                                    Circle()
+                                        .fill(TranscriptAnalyzer.availability == .available
+                                              ? Color.ember : Color.inkFaint)
+                                        .frame(width: 6, height: 6)
+                                    Text(TranscriptAnalyzer.availability == .available
+                                         ? "Disponível" : "Indisponível")
+                                }
+                            }
+                            if let reason = TranscriptAnalyzer.availability.reason {
+                                note(reason)
+                            } else {
+                                note("Gera resumo, tags e itens de ação.")
                             }
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(AppSettings.displayName(for: settings.transcriptionLocaleIdentifier))
-                            Image(systemName: "chevron.up.chevron.down").font(.caption2)
+
+                        group("Armazenamento") {
+                            PlainRow(label: String(localized: "Gravações")) {
+                                Text(recordings.count.formatted()).monospacedDigit()
+                            }
+                            Rule()
+                            PlainRow(label: String(localized: "Espaço em disco")) {
+                                Text(DurationFormat.byteCount(diskUsage)).monospacedDigit()
+                            }
+                            Rule()
+                            Button(role: .destructive) {
+                                confirmingDeleteAll = true
+                            } label: {
+                                Text("Apagar todas as gravações")
+                                    .font(.system(.body))
+                                    .foregroundStyle(recordings.isEmpty ? Color.inkFaint : Color.ember)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(recordings.isEmpty)
                         }
+
+                        Text("Recall \(versionString)")
+                            .font(.uiMeta)
+                            .foregroundStyle(Color.inkFaint)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 26)
                     }
+                    .padding(.horizontal, Metrics.gutter)
+                    .padding(.bottom, 40)
                 }
+                .paperBackground()
             }
-
-            CardRow(label: "Modelo de voz", showsDivider: speechModel.needsDownload || speechModel.isInstalling) {
-                HStack(spacing: 8) {
-                    if speechModel.isReady {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    }
-                    Text(speechModel.label)
-                }
+            .navigationBarHidden(true)
+            .task { await refresh() }
+            .onChange(of: settings.transcriptionLocaleIdentifier) {
+                Task { await speechModel.refresh(for: settings.transcriptionLocale) }
             }
-
-            if speechModel.isInstalling {
-                VStack(alignment: .leading, spacing: 6) {
-                    ProgressView(value: speechModel.progress)
-                    Text("Baixando \(Int(speechModel.progress * 100))%")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 13)
-            } else if speechModel.needsDownload {
-                Button {
-                    Task { await speechModel.install(for: settings.transcriptionLocale) }
-                } label: {
-                    Label("Baixar modelo", systemImage: "arrow.down.circle")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 13)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
+            .confirmationDialog(
+                "Apagar todas as gravações?",
+                isPresented: $confirmingDeleteAll,
+                titleVisibility: .visible
+            ) {
+                Button("Apagar tudo", role: .destructive) { confirmingDeleteAllAgain = true }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Isso remove o áudio, as transcrições e as análises deste iPhone.")
             }
-
-            if let error = speechModel.error {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
+            .alert("Tem certeza?", isPresented: $confirmingDeleteAllAgain) {
+                Button("Apagar definitivamente", role: .destructive) { deleteEverything() }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Não há backup. Esta ação não pode ser desfeita.")
             }
         }
     }
 
-    private var intelligence: some View {
-        CardGroup(
-            title: "Apple Intelligence",
-            footnote: "Gera resumo, tags e itens de ação. Sem ele o app continua gravando e transcrevendo."
-        ) {
-            CardRow(label: "Status", showsDivider: false) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(TranscriptAnalyzer.availability == .available ? .green : .orange)
-                        .frame(width: 8, height: 8)
-                    Text(TranscriptAnalyzer.availability == .available ? "Disponível" : "Indisponível")
-                }
-            }
-            if let reason = TranscriptAnalyzer.availability.reason {
-                Text(reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
-            }
+    private func group<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Marker(text: title).padding(.bottom, 4)
+            Rule()
+            content()
         }
+        .padding(.bottom, 34)
     }
 
-    private var storage: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Armazenamento")
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 6)
-
-            HStack(spacing: 12) {
-                statTile(value: recordings.count.formatted(), label: "Gravações")
-                statTile(value: DurationFormat.byteCount(diskUsage), label: "Em disco")
-            }
-
-            Button(role: .destructive) {
-                confirmingDeleteAll = true
-            } label: {
-                Label("Apagar todas as gravações", systemImage: "trash")
-                    .font(.system(.body, design: .rounded, weight: .medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(recordings.isEmpty ? Color.secondary : Color.red)
-            .background(
-                RoundedRectangle(cornerRadius: Metrics.card, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-            )
-            .disabled(recordings.isEmpty)
-            .padding(.top, 4)
-        }
-    }
-
-    private func statTile(value: String, label: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(value)
-                .font(.system(.title2, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Text(label)
-                .font(.meta)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .surfaceCard(padding: 14)
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.uiMeta)
+            .foregroundStyle(Color.inkSoft)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 10)
     }
 
     private var versionString: String {
@@ -200,8 +175,6 @@ struct SettingsView: View {
         let build = info?["CFBundleVersion"] as? String ?? "1"
         return "\(version) (\(build))"
     }
-
-    // MARK: - Actions
 
     private func refresh() async {
         diskUsage = AudioStore.shared.totalByteCount()

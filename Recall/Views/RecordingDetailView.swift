@@ -15,42 +15,25 @@ struct RecordingDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                header
-                player
-                analysis
-                transcript
-            }
-            .padding(.horizontal, Metrics.gutter)
-            .padding(.bottom, 40)
-        }
-        .screenBackground()
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    ShareLink(item: recording.markdownExport, preview: SharePreview(recording.title)) {
-                        Label("Compartilhar markdown", systemImage: "square.and.arrow.up")
-                    }
-                    if !recording.transcriptText.isEmpty {
-                        Button("Reanalisar", systemImage: "sparkles") {
-                            pipeline.reanalyze(recording)
-                        }
-                        .disabled(TranscriptAnalyzer.availability != .available)
-                    }
-                    Divider()
-                    Button("Excluir", systemImage: "trash", role: .destructive) {
-                        confirmingDelete = true
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
+        ZStack {
+            Color.paper.ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    topBar
+                    header
+                    player
+                    analysis
+                    transcript
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel(Text("Mais ações"))
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.bottom, 48)
             }
+            .paperBackground()
         }
+        // Own chrome: the system bar would float white circles over the paper.
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
         .task { load() }
         .onDisappear {
             playback.stop()
@@ -72,20 +55,52 @@ struct RecordingDetailView: View {
         }
     }
 
-    // MARK: - Header
+    private var topBar: some View {
+        HStack {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+            }
+            .accessibilityLabel(Text("Voltar"))
+
+            Spacer()
+
+            Menu {
+                ShareLink(item: recording.markdownExport, preview: SharePreview(recording.title)) {
+                    Label("Compartilhar markdown", systemImage: "square.and.arrow.up")
+                }
+                if !recording.transcriptText.isEmpty {
+                    Button("Reanalisar", systemImage: "sparkles") {
+                        pipeline.reanalyze(recording)
+                    }
+                    .disabled(TranscriptAnalyzer.availability != .available)
+                }
+                Divider()
+                Button("Excluir", systemImage: "trash", role: .destructive) {
+                    confirmingDelete = true
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+            }
+            .accessibilityLabel(Text("Mais ações"))
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 22)
+    }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             TextField("Título", text: $recording.title, axis: .vertical)
-                .font(.system(.title, design: .rounded, weight: .bold))
-                .lineLimit(1...3)
+                .font(.displayMedium)
+                .foregroundStyle(Color.ink)
+                .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .onSubmit { try? modelContext.save() }
 
-            HStack(spacing: 6) {
-                if recording.source == .imported {
-                    Image(systemName: "square.and.arrow.down").font(.caption2)
-                }
+            HStack(spacing: 5) {
                 Text(recording.createdAt.formatted(date: .long, time: .shortened))
                 Text(verbatim: "·")
                 Text(DurationFormat.clock(recording.duration)).monospacedDigit()
@@ -94,8 +109,8 @@ struct RecordingDetailView: View {
                     Text("\(recording.wordCount) palavras")
                 }
             }
-            .font(.meta)
-            .foregroundStyle(.secondary)
+            .font(.uiMeta)
+            .foregroundStyle(Color.inkSoft)
 
             if !recording.tags.isEmpty {
                 FlowLayout {
@@ -104,140 +119,122 @@ struct RecordingDetailView: View {
                 .padding(.top, 2)
             }
         }
-        .padding(.top, 4)
+        .padding(.top, 6)
+        .padding(.bottom, 26)
     }
-
-    // MARK: - Player
 
     @ViewBuilder
     private var player: some View {
         if let loadError {
-            Label(loadError, systemImage: "exclamationmark.triangle")
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .surfaceCard()
+            Text(loadError)
+                .font(.uiMeta)
+                .foregroundStyle(Color.inkSoft)
+                .padding(.bottom, 26)
         } else {
-            VStack(spacing: 12) {
-                Scrubber(
-                    value: playback.currentTime,
-                    duration: max(playback.duration, 0.1)
-                ) { playback.seek(to: $0) }
+            VStack(spacing: 14) {
+                Scrubber(value: playback.currentTime, duration: max(playback.duration, 0.1)) {
+                    playback.seek(to: $0)
+                }
 
                 HStack {
                     Text(DurationFormat.clock(playback.currentTime))
                     Spacer()
                     Text("−" + DurationFormat.clock(max(0, playback.duration - playback.currentTime)))
                 }
-                .font(.system(.caption, design: .rounded, weight: .medium))
+                .font(.system(.caption2, weight: .medium))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkFaint)
 
-                HStack(spacing: 36) {
-                    Button {
-                        playback.seek(to: playback.currentTime - 15)
-                    } label: {
-                        Image(systemName: "gobackward.15").font(.title3)
+                HStack(spacing: 34) {
+                    Button { playback.seek(to: playback.currentTime - 15) } label: {
+                        Image(systemName: "gobackward.15").font(.system(size: 19))
                     }
                     .accessibilityLabel(Text("Voltar 15 segundos"))
 
                     Button(action: playback.toggle) {
-                        ZStack {
-                            Circle().fill(Color.accentColor).frame(width: 60, height: 60)
-                            Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .offset(x: playback.isPlaying ? 0 : 2)
-                        }
+                        Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(Color.ember)
+                            .frame(width: 46, height: 46)
                     }
                     .accessibilityLabel(playback.isPlaying ? Text("Pausar") : Text("Reproduzir"))
 
-                    Button {
-                        playback.seek(to: playback.currentTime + 15)
-                    } label: {
-                        Image(systemName: "goforward.15").font(.title3)
+                    Button { playback.seek(to: playback.currentTime + 15) } label: {
+                        Image(systemName: "goforward.15").font(.system(size: 19))
                     }
                     .accessibilityLabel(Text("Avançar 15 segundos"))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.primary)
-                .padding(.top, 2)
+                .foregroundStyle(Color.ink)
             }
-            .padding(18)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Metrics.card, style: .continuous))
+            .padding(.bottom, 30)
         }
     }
-
-    // MARK: - Analysis
 
     @ViewBuilder
     private var analysis: some View {
         if !recording.transcriptText.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Resumo", systemImage: "sparkles")
-                    .font(.cardTitle)
-                    .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 14) {
+                Rule()
+                Marker(text: String(localized: "Resumo")).padding(.top, 4)
 
                 if let summary = recording.summary, !summary.isEmpty {
                     Text(summary)
-                        .font(.system(.body, design: .default))
-                        .lineSpacing(3)
+                        .font(.reading)
+                        .foregroundStyle(Color.ink)
+                        .lineSpacing(7)
 
                     if !recording.actionItems.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Itens de ação")
-                                .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 9) {
+                            Marker(text: String(localized: "Itens de ação")).padding(.top, 6)
                             ForEach(recording.actionItems, id: \.self) { item in
-                                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Image(systemName: "circle")
-                                        .font(.caption2)
-                                        .foregroundStyle(Color.accentColor)
-                                    Text(item).font(.system(.callout, design: .default))
+                                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                    Circle()
+                                        .stroke(Color.ember, lineWidth: 1.2)
+                                        .frame(width: 7, height: 7)
+                                    Text(item)
+                                        .font(.readingSmall)
+                                        .foregroundStyle(Color.ink)
                                 }
                             }
                         }
-                        .padding(.top, 4)
                     }
                 } else if recording.status == .analyzing {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("Analisando…").foregroundStyle(.secondary)
+                    HStack(spacing: 9) {
+                        ProgressView().tint(Color.ember)
+                        Text("Analisando…").font(.uiMeta).foregroundStyle(Color.inkSoft)
                     }
-                    .font(.system(.callout, design: .rounded))
                 } else {
                     Text(unavailableReason)
-                        .font(.system(.callout, design: .rounded))
-                        .foregroundStyle(.secondary)
-
+                        .font(.uiMeta)
+                        .foregroundStyle(Color.inkSoft)
                     if recording.status == .failed {
-                        Button("Tentar de novo", systemImage: "arrow.clockwise") {
-                            pipeline.retry(recording)
-                        }
-                        .buttonStyle(.glass)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        Button("Tentar de novo") { pipeline.retry(recording) }
+                            .font(.system(.subheadline, weight: .semibold))
+                            .foregroundStyle(Color.ember)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .surfaceCard(padding: 18)
+            .padding(.bottom, 32)
         } else if let notice = recording.statusNotice {
-            HStack(spacing: 10) {
-                if recording.status != .failed { ProgressView() }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(notice).font(.system(.callout, design: .rounded, weight: .medium))
-                    if let progress = pipeline.downloadProgress, pipeline.activeRecordingID == recording.id {
-                        ProgressView(value: progress).font(.caption)
+            VStack(alignment: .leading, spacing: 10) {
+                Rule()
+                HStack(spacing: 10) {
+                    if recording.status != .failed { ProgressView().tint(Color.ember) }
+                    Text(notice).font(.uiMeta).foregroundStyle(Color.inkSoft)
+                    Spacer(minLength: 0)
+                    if recording.status == .failed {
+                        Button("Tentar") { pipeline.retry(recording) }
+                            .font(.system(.subheadline, weight: .semibold))
+                            .foregroundStyle(Color.ember)
                     }
                 }
-                Spacer(minLength: 0)
-                if recording.status == .failed {
-                    Button("Tentar") { pipeline.retry(recording) }
-                        .buttonStyle(.glass)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .padding(.top, 12)
+                if let progress = pipeline.downloadProgress, pipeline.activeRecordingID == recording.id {
+                    ProgressView(value: progress).tint(Color.ember)
                 }
             }
-            .surfaceCard(padding: 16)
+            .padding(.bottom, 30)
         }
     }
 
@@ -247,56 +244,53 @@ struct RecordingDetailView: View {
         return String(localized: "Ainda sem resumo para esta gravação.")
     }
 
-    // MARK: - Transcript
-
     @ViewBuilder
     private var transcript: some View {
         if !segments.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Transcrição")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 6)
-                    .padding(.bottom, 6)
+            VStack(alignment: .leading, spacing: 0) {
+                Rule()
+                Marker(text: String(localized: "Transcrição"))
+                    .padding(.top, 18)
+                    .padding(.bottom, 14)
 
                 ForEach(segments) { segment in
-                    Button {
-                        playback.seek(to: segment.start)
-                    } label: {
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Button { playback.seek(to: segment.start) } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 14) {
                             Text(DurationFormat.clock(segment.start))
-                                .font(.system(.caption, design: .rounded, weight: .medium))
+                                .font(.system(.caption2, weight: .medium))
                                 .monospacedDigit()
-                                .foregroundStyle(isCurrent(segment) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
-                                .frame(width: 44, alignment: .leading)
+                                .foregroundStyle(isCurrent(segment) ? Color.ember : Color.inkFaint)
+                                .frame(width: 38, alignment: .leading)
                             Text(segment.text)
-                                .font(.system(.body, design: .default))
-                                .lineSpacing(4)
+                                .font(.reading)
+                                .lineSpacing(7)
+                                .foregroundStyle(isCurrent(segment) ? Color.ink : Color.ink.opacity(0.82))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(isCurrent(segment) ? Color.accentColor.opacity(0.12) : .clear)
-                        )
+                        .padding(.vertical, 9)
+                        .overlay(alignment: .leading) {
+                            if isCurrent(segment) {
+                                Rectangle()
+                                    .fill(Color.ember)
+                                    .frame(width: 2)
+                                    .offset(x: -12)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint(Text("Toque para reproduzir a partir deste trecho"))
                 }
             }
         } else if !recording.transcriptText.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Transcrição")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 14) {
+                Rule()
+                Marker(text: String(localized: "Transcrição")).padding(.top, 4)
                 Text(recording.transcriptText)
-                    .font(.system(.body, design: .default))
-                    .lineSpacing(4)
+                    .font(.reading)
+                    .lineSpacing(7)
+                    .foregroundStyle(Color.ink)
                     .textSelection(.enabled)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .surfaceCard(padding: 18)
         }
     }
 
@@ -314,7 +308,7 @@ struct RecordingDetailView: View {
     }
 }
 
-/// Custom transport bar — the stock `Slider` is the giveaway that a screen is a form.
+/// Hairline transport bar. A stock `Slider` gives a screen away as a form.
 private struct Scrubber: View {
     let value: Double
     let duration: Double
@@ -324,17 +318,12 @@ private struct Scrubber: View {
         GeometryReader { proxy in
             let fraction = min(max(value / duration, 0), 1)
             ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.primary.opacity(0.12))
-                    .frame(height: 6)
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(width: proxy.size.width * fraction, height: 6)
+                Capsule().fill(Color.rule).frame(height: 3)
+                Capsule().fill(Color.ember).frame(width: proxy.size.width * fraction, height: 3)
                 Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: 14, height: 14)
-                    .offset(x: proxy.size.width * fraction - 7)
-                    .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
+                    .fill(Color.ember)
+                    .frame(width: 11, height: 11)
+                    .offset(x: proxy.size.width * fraction - 5.5)
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -344,7 +333,7 @@ private struct Scrubber: View {
                 }
             )
         }
-        .frame(height: 22)
+        .frame(height: 20)
         .accessibilityElement()
         .accessibilityLabel(Text("Posição da reprodução"))
         .accessibilityValue(Text(DurationFormat.clock(value)))
