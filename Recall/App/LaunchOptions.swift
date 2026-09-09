@@ -25,6 +25,12 @@ enum LaunchOptions {
         }
     }
 
+    /// Starts a recording as soon as the Gravar tab appears, so the recording state
+    /// itself can be screenshotted from the command line.
+    static var autoRecord: Bool {
+        ProcessInfo.processInfo.arguments.contains("-recall-autorecord")
+    }
+
     /// Section anchor the Insights tab scrolls to on appear, for screenshots.
     static var insightsAnchor: String? {
         let arguments = ProcessInfo.processInfo.arguments

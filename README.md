@@ -94,5 +94,5 @@ Recall/Views        one file per screen
 Recall/Resources    Info.plist, assets, String Catalog, stopword list
 RecallTests         unit tests plus the two on-device integration suites
 Scripts             app icon generator
-docs/screenshots    one screenshot per tab
+docs/screenshots    one screenshot per tab, plus the recording state
 ```

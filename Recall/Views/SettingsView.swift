@@ -6,12 +6,9 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var recordings: [Recording]
     @State private var settings = AppSettings.shared
+    @State private var speechModel = SpeechModelState.shared
 
     @State private var availableLocales: [Locale] = []
-    @State private var assetStatus: AssetInventory.Status?
-    @State private var isDownloading = false
-    @State private var downloadProgress: Double = 0
-    @State private var downloadError: String?
     @State private var diskUsage: Int64 = 0
     @State private var confirmingDeleteAll = false
     @State private var confirmingDeleteAllAgain = false
@@ -27,7 +24,7 @@ struct SettingsView: View {
             .navigationTitle("Ajustes")
             .task { await refresh() }
             .onChange(of: settings.transcriptionLocaleIdentifier) {
-                Task { await refreshAssetStatus() }
+                Task { await speechModel.refresh(for: settings.transcriptionLocale) }
             }
             .confirmationDialog(
                 "Apagar todas as gravações?",
@@ -67,21 +64,21 @@ struct SettingsView: View {
                 }
             }
 
-            LabeledContent("Modelo de fala", value: assetStatusLabel)
+            LabeledContent("Modelo de fala", value: speechModel.label)
 
-            if isDownloading {
-                ProgressView(value: downloadProgress) {
+            if speechModel.isInstalling {
+                ProgressView(value: speechModel.progress) {
                     Text("Baixando o modelo")
                 }
                 .font(.footnote)
-            } else if assetStatus == .supported || assetStatus == .downloading {
+            } else if speechModel.needsDownload {
                 Button("Baixar modelo", systemImage: "arrow.down.circle") {
-                    Task { await downloadModel() }
+                    Task { await speechModel.install(for: settings.transcriptionLocale) }
                 }
             }
 
-            if let downloadError {
-                Text(downloadError)
+            if let error = speechModel.error {
+                Text(error)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -127,17 +124,6 @@ struct SettingsView: View {
 
     // MARK: - Labels
 
-    private var assetStatusLabel: String {
-        switch assetStatus {
-        case .installed: String(localized: "Baixado")
-        case .downloading: String(localized: "Baixando")
-        case .supported: String(localized: "Não baixado")
-        case .unsupported: String(localized: "Não disponível")
-        case nil: String(localized: "Verificando…")
-        @unknown default: String(localized: "Não disponível")
-        }
-    }
-
     private var intelligenceStatusLabel: String {
         TranscriptAnalyzer.availability == .available
             ? String(localized: "Disponível")
@@ -163,28 +149,7 @@ struct SettingsView: View {
                 $0.language.languageCode == wanted.language.languageCode && $0.region == wanted.region
             }
         }
-        await refreshAssetStatus()
-    }
-
-    private func refreshAssetStatus() async {
-        assetStatus = await SpeechAssets.status(for: settings.transcriptionLocale)
-    }
-
-    private func downloadModel() async {
-        isDownloading = true
-        downloadProgress = 0
-        downloadError = nil
-        defer { isDownloading = false }
-
-        do {
-            try await SpeechAssets.install(settings.transcriptionLocale) { fraction in
-                Task { @MainActor in downloadProgress = fraction }
-            }
-            await SpeechAssets.reserve(settings.transcriptionLocale)
-        } catch {
-            downloadError = error.localizedDescription
-        }
-        await refreshAssetStatus()
+        await speechModel.refresh(for: settings.transcriptionLocale)
     }
 
     private func deleteEverything() {

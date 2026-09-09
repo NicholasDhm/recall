@@ -98,14 +98,12 @@ final class LiveTranscriber {
         try? await analyzer?.finalizeAndFinishThroughEndOfInput()
         await resultsTask?.value
 
-        feedTask = nil
-        resultsTask = nil
-        analyzer = nil
-        inputContinuation = nil
-        volatileText = ""
+        let collected = segments
+        // Clear everything: the Gravar screen must come back empty for the next take.
+        reset()
 
-        guard !segments.isEmpty else { return nil }
-        return TranscriptionOutput(text: TranscriptText.join(segments), segments: segments)
+        guard !collected.isEmpty else { return nil }
+        return TranscriptionOutput(text: TranscriptText.join(collected), segments: collected)
     }
 
     func cancel() {

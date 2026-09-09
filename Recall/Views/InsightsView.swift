@@ -57,6 +57,7 @@ struct InsightsView: View {
                 }
                 .padding()
             }
+            .screenBackground()
             .onAppear {
                 #if DEBUG
                 if let anchor = LaunchOptions.insightsAnchor {
@@ -176,12 +177,14 @@ struct InsightsView: View {
                     ForEach(Array(metrics.topWords.enumerated()), id: \.element.id) { index, word in
                         HStack {
                             Text(word.name)
+                                .font(.system(.body, design: .rounded))
                             Spacer()
                             Text(word.count.formatted())
+                                .font(.system(.body, design: .rounded, weight: .medium))
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 7)
                         if index < metrics.topWords.count - 1 {
                             Divider()
                         }
@@ -208,19 +211,18 @@ private struct StatCard: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.caption)
+                .font(.meta)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.title2.weight(.semibold))
+                .font(.system(.title2, design: .rounded, weight: .semibold))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .surfaceCard(padding: 14)
     }
 }
 
@@ -234,13 +236,12 @@ private struct ChartCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.headline)
+                .font(.cardTitle)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .surfaceCard()
     }
 }

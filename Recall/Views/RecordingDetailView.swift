@@ -108,10 +108,14 @@ struct RecordingDetailView: View {
             Section("Análise") {
                 if let summary = recording.summary, !summary.isEmpty {
                     Text(summary)
+                        .font(.system(.body, design: .default))
+                        .lineSpacing(3)
 
                     if !recording.tags.isEmpty {
-                        TagChips(tags: recording.tags)
-                            .padding(.vertical, 2)
+                        FlowLayout {
+                            ForEach(recording.tags, id: \.self) { Chip(text: $0) }
+                        }
+                        .padding(.vertical, 2)
                     }
 
                     if !recording.actionItems.isEmpty {
@@ -168,6 +172,8 @@ struct RecordingDetailView: View {
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                             Text(segment.text)
+                                .font(.system(.body, design: .default))
+                                .lineSpacing(4)
                                 .foregroundStyle(.primary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -179,7 +185,10 @@ struct RecordingDetailView: View {
             }
         } else if !recording.transcriptText.isEmpty {
             Section("Transcrição") {
-                Text(recording.transcriptText).textSelection(.enabled)
+                Text(recording.transcriptText)
+                    .font(.system(.body, design: .default))
+                    .lineSpacing(4)
+                    .textSelection(.enabled)
             }
         }
     }

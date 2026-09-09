@@ -13,6 +13,10 @@ configs:
   Debug: debug
   Release: release
 
+configFiles:
+  Debug: Config/Local.xcconfig
+  Release: Config/Local.xcconfig
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -28,9 +32,6 @@ targets:
   Recall:
     type: application
     platform: iOS
-    configFiles:
-      Debug: Config/Local.xcconfig
-      Release: Config/Local.xcconfig
     sources:
       - path: Recall
     settings:

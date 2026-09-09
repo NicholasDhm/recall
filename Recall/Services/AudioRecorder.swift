@@ -77,13 +77,14 @@ final class AudioRecorder {
     /// Rolling window of levels for the meter; oldest first.
     private(set) var levels: [Float] = []
 
-    static let levelWindow = 60
+    static let levelWindow = 90
 
     private let engine = AVAudioEngine()
     private let store: AudioStore
     private var writer: RecordingWriter?
     private var fileName: String?
     private var tickTask: Task<Void, Never>?
+    private var smoothedLevel: Float = 0
     /// Set while recording so the transcription pipeline can consume the same buffers.
     private(set) var bufferStream: AsyncStream<CapturedAudioBuffer>?
     private var bufferContinuation: AsyncStream<CapturedAudioBuffer>.Continuation?
@@ -125,7 +126,7 @@ final class AudioRecorder {
 
         // Explicitly @Sendable: the block runs on the audio render thread, and an
         // inherited main-actor isolation would trap the executor check there.
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { @Sendable buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { @Sendable buffer, _ in
             guard let converted = writer.append(buffer) else { return }
             bufferContinuation.yield(converted.buffer)
             tickContinuation.yield(
@@ -152,8 +153,7 @@ final class AudioRecorder {
         self.bufferStream = buffers
         self.bufferContinuation = bufferContinuation
         isRecording = true
-        elapsed = 0
-        levels = []
+        clear()
 
         tickTask = Task { [weak self] in
             for await tick in tickStream {
@@ -180,7 +180,7 @@ final class AudioRecorder {
         self.bufferStream = nil
         self.bufferContinuation = nil
         isRecording = false
-        elapsed = duration
+        clear()
 
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         return FinishedRecording(fileName: fileName, duration: duration)
@@ -192,11 +192,24 @@ final class AudioRecorder {
     }
 
     private func apply(_ tick: RecordingTick) {
-        elapsed = tick.elapsed
-        levels.append(tick.level)
+        // The label only ever shows whole seconds; updating it at the buffer rate would
+        // re-render the timer ~23 times a second for nothing.
+        if Int(tick.elapsed) != Int(elapsed) {
+            elapsed = tick.elapsed
+        }
+
+        smoothedLevel = smoothedLevel * 0.55 + tick.level * 0.45
+        levels.append(smoothedLevel)
         if levels.count > Self.levelWindow {
             levels.removeFirst(levels.count - Self.levelWindow)
         }
+    }
+
+    /// Returns the screen to its idle state: no timer, no waveform.
+    func clear() {
+        elapsed = 0
+        levels = []
+        smoothedLevel = 0
     }
 
     private func configureSession() throws {
