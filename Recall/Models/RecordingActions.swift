@@ -35,3 +35,14 @@ extension Recording {
         return tags.contains { $0.lowercased().contains(needle) }
     }
 }
+
+extension Recording {
+    /// Shown in the Library row only while the pipeline still owes something.
+    var statusNotice: String? {
+        switch status {
+        case .ready: nil
+        case .failed: failureReason ?? status.label
+        default: status.label
+        }
+    }
+}

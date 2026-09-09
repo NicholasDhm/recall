@@ -37,51 +37,21 @@ enum AudioRecorderError: LocalizedError {
 /// `frameCount` only after the tap has been removed.
 private final class RecordingWriter: @unchecked Sendable {
     private let file: AVAudioFile
-    private let converter: AVAudioConverter
-    private let outputFormat: AVAudioFormat
+    private let converter: AudioBufferConverter
     private(set) var frameCount: AVAudioFramePosition = 0
 
     init(url: URL, inputFormat: AVAudioFormat) throws {
         file = try AVAudioFile(forWriting: url, settings: AudioFormat.settings)
-        outputFormat = file.processingFormat
-        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
+        guard let converter = AudioBufferConverter(from: inputFormat, to: file.processingFormat) else {
             throw AudioRecorderError.engineUnavailable
         }
         self.converter = converter
     }
 
-    /// Hands one buffer to the converter, exactly once. The converter calls this
-    /// synchronously from inside `convert`, so no synchronisation is needed.
-    private final class InputSource: @unchecked Sendable {
-        private var pending: AVAudioPCMBuffer?
-
-        init(_ buffer: AVAudioPCMBuffer) { pending = buffer }
-
-        func next(_ packetCount: AVAudioPacketCount, _ status: UnsafeMutablePointer<AVAudioConverterInputStatus>) -> AVAudioBuffer? {
-            guard let pending else {
-                status.pointee = .noDataNow
-                return nil
-            }
-            self.pending = nil
-            status.pointee = .haveData
-            return pending
-        }
-    }
-
     /// Returns the converted buffer so the caller can also hand it to a transcriber,
     /// plus a 0...1 level for the meter.
     func append(_ input: AVAudioPCMBuffer) -> (buffer: CapturedAudioBuffer, level: Float)? {
-        let ratio = outputFormat.sampleRate / input.format.sampleRate
-        let capacity = AVAudioFrameCount(Double(input.frameLength) * ratio) + 1024
-        guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else {
-            return nil
-        }
-
-        let source = InputSource(input)
-        var conversionError: NSError?
-        let status = converter.convert(to: output, error: &conversionError, withInputFrom: source.next)
-
-        guard status != .error, output.frameLength > 0 else { return nil }
+        guard let output = converter.convert(input) else { return nil }
         try? file.write(from: output)
         frameCount += AVAudioFramePosition(output.frameLength)
         return (CapturedAudioBuffer(buffer: output), Self.level(of: output))

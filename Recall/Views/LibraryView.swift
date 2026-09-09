@@ -1,11 +1,16 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(RecordingPipeline.self) private var pipeline
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
+    @State private var settings = AppSettings.shared
     @State private var query = ""
     @State private var pendingDeletion: Recording?
+    @State private var isImporting = false
+    @State private var importError: String?
 
     private var filtered: [Recording] {
         query.isEmpty ? recordings : recordings.filter { $0.matches(query: query) }
@@ -19,6 +24,10 @@ struct LibraryView: View {
                         Label("Nenhuma gravação", systemImage: "waveform")
                     } description: {
                         Text("Grave na aba Gravar ou importe um arquivo de áudio.")
+                    } actions: {
+                        Button("Importar áudio", systemImage: "square.and.arrow.down") {
+                            isImporting = true
+                        }
                     }
                 } else if filtered.isEmpty {
                     ContentUnavailableView.search(text: query)
@@ -28,6 +37,28 @@ struct LibraryView: View {
             }
             .navigationTitle("Biblioteca")
             .searchable(text: $query, prompt: Text("Buscar por título, transcrição ou tag"))
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Importar áudio", systemImage: "square.and.arrow.down") {
+                        isImporting = true
+                    }
+                }
+            }
+            .fileImporter(
+                isPresented: $isImporting,
+                allowedContentTypes: AudioFormat.importableContentTypes,
+                allowsMultipleSelection: true
+            ) { result in
+                switch result {
+                case .success(let urls): importFiles(urls)
+                case .failure(let error): importError = error.localizedDescription
+                }
+            }
+            .alert("Não foi possível importar", isPresented: importErrorBinding) {
+                Button("OK", role: .cancel) { importError = nil }
+            } message: {
+                Text(importError ?? "")
+            }
             .confirmationDialog(
                 "Excluir esta gravação?",
                 isPresented: deletionBinding,
@@ -68,6 +99,39 @@ struct LibraryView: View {
     private var deletionBinding: Binding<Bool> {
         Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } })
     }
+
+    private var importErrorBinding: Binding<Bool> {
+        Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })
+    }
+
+    private func importFiles(_ urls: [URL]) {
+        let store = AudioStore.shared
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+            do {
+                let id = UUID()
+                let fileName = try store.importFile(from: url, id: id)
+                let file = try? AVAudioFile(forReading: store.url(for: fileName))
+                let duration = file.map { Double($0.length) / $0.fileFormat.sampleRate } ?? 0
+                modelContext.insert(
+                    Recording(
+                        id: id,
+                        title: url.deletingPathExtension().lastPathComponent,
+                        duration: duration,
+                        audioFileName: fileName,
+                        localeIdentifier: settings.transcriptionLocaleIdentifier,
+                        source: .imported
+                    )
+                )
+            } catch {
+                importError = error.localizedDescription
+            }
+        }
+        try? modelContext.save()
+        pipeline.resume()
+    }
 }
 
 struct RecordingRow: View {
@@ -92,6 +156,12 @@ struct RecordingRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+            }
+
+            if let status = recording.statusNotice {
+                Label(status, systemImage: recording.status == .failed ? "exclamationmark.triangle" : "clock")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if !recording.tags.isEmpty {

@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import UniformTypeIdentifiers
 
 /// The one place the recording format is defined: AAC in an `.m4a` container,
 /// mono, 32 kbps, 16 kHz — small files, and the sample rate on-device speech wants.
@@ -29,5 +30,9 @@ enum AudioFormat {
     }
 
     /// File types accepted by the Library importer.
-    static let importableTypes = ["m4a", "mp3", "wav", "aac", "caf"]
+    static var importableContentTypes: [UTType] {
+        var types: [UTType] = [.mpeg4Audio, .mp3, .wav]
+        types += ["public.aac-audio", "com.apple.coreaudio-format"].compactMap(UTType.init(_:))
+        return types
+    }
 }
