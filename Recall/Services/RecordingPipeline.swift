@@ -74,7 +74,9 @@ final class RecordingPipeline {
             .first { $0.status.pendingWork != nil }
     }
 
-    private func drain() async {
+    /// Runs the queue to exhaustion. `resume` wraps this in a background task; callers
+    /// that need to await completion can drive it directly.
+    func drain() async {
         while let recording = nextPending() {
             guard let work = recording.status.pendingWork else { break }
             activeRecordingID = recording.id
@@ -117,8 +119,53 @@ final class RecordingPipeline {
     }
 
     private func analyze(_ recording: Recording) async {
+        guard !recording.transcriptText.isEmpty else {
+            recording.status = .ready
+            save()
+            return
+        }
+
+        // A missing on-device model is not a failure: the recording stays usable.
+        if let reason = TranscriptAnalyzer.availability.reason {
+            recording.failureReason = reason
+            recording.status = .ready
+            save()
+            return
+        }
+
+        recording.status = .analyzing
+        recording.failureReason = nil
+        save()
+
+        do {
+            let segments = recording.segments
+                .sorted { $0.start < $1.start }
+                .map { TranscribedSegment(start: $0.start, end: $0.end, text: $0.text) }
+            let result = try await TranscriptAnalyzer.analyze(
+                transcript: recording.transcriptText,
+                segments: segments
+            )
+            recording.summary = result.summary.isEmpty ? nil : result.summary
+            recording.tags = result.tags
+            recording.actionItems = result.actionItems
+        } catch {
+            recording.failureReason = error.localizedDescription
+        }
+
         recording.status = .ready
         save()
+    }
+
+    /// Throws the analysis away and runs it again from the existing transcript.
+    func reanalyze(_ recording: Recording) {
+        guard !recording.transcriptText.isEmpty else { return }
+        recording.summary = nil
+        recording.tags = []
+        recording.actionItems = []
+        recording.failureReason = nil
+        recording.status = .transcribed
+        save()
+        resume()
     }
 
     func apply(_ output: TranscriptionOutput, to recording: Recording) {

@@ -22,6 +22,8 @@ struct RecordingDetailView: View {
                 Section { statusRow(notice) }
             }
 
+            analysisSection
+
             transcriptSection
 
             Section("Detalhes") {
@@ -78,6 +80,58 @@ struct RecordingDetailView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var analysisSection: some View {
+        if !recording.transcriptText.isEmpty {
+            Section("Análise") {
+                if let summary = recording.summary, !summary.isEmpty {
+                    Text(summary)
+
+                    if !recording.tags.isEmpty {
+                        TagChips(tags: recording.tags)
+                            .padding(.vertical, 2)
+                    }
+
+                    if !recording.actionItems.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Itens de ação")
+                                .font(.subheadline.weight(.semibold))
+                            ForEach(recording.actionItems, id: \.self) { item in
+                                Label(item, systemImage: "checkmark.circle")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(.callout)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                } else if recording.status == .analyzing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Analisando a transcrição…")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(analysisUnavailableReason)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                if recording.status != .analyzing {
+                    Button("Reanalisar", systemImage: "sparkles") {
+                        pipeline.reanalyze(recording)
+                    }
+                    .disabled(TranscriptAnalyzer.availability != .available)
+                }
+            }
+        }
+    }
+
+    private var analysisUnavailableReason: String {
+        if let reason = TranscriptAnalyzer.availability.reason { return reason }
+        if let stored = recording.failureReason, !stored.isEmpty { return stored }
+        return String(localized: "Ainda sem resumo para esta gravação.")
     }
 
     @ViewBuilder
