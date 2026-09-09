@@ -1,0 +1,6 @@
+// Copy this file to Config/Local.xcconfig and fill in your Apple Developer Team ID.
+// With a free Apple ID the team is a "Personal Team"; the ID is the 10-character
+// string shown in Xcode under Signing & Capabilities once the team is selected.
+// Leaving it empty still builds for the simulator, but not for a device.
+
+DEVELOPMENT_TEAM =
