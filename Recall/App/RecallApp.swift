@@ -15,6 +15,12 @@ struct RecallApp: App {
         }
         self.container = container
         _pipeline = State(initialValue: RecordingPipeline(context: container.mainContext))
+
+        #if DEBUG
+        if LaunchOptions.seedsFixtures {
+            MainActor.assumeIsolated { LaunchOptions.seedFixtures(into: container.mainContext) }
+        }
+        #endif
     }
 
     var body: some Scene {

@@ -5,6 +5,7 @@ import SwiftUI
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(RecordingPipeline.self) private var pipeline
+    @Environment(Navigation.self) private var navigation
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
     @State private var settings = AppSettings.shared
     @State private var query = ""
@@ -13,7 +14,11 @@ struct LibraryView: View {
     @State private var importError: String?
 
     private var filtered: [Recording] {
-        query.isEmpty ? recordings : recordings.filter { $0.matches(query: query) }
+        var result = recordings
+        if let tag = navigation.libraryTag {
+            result = result.filter { $0.tags.contains(tag) }
+        }
+        return query.isEmpty ? result : result.filter { $0.matches(query: query) }
     }
 
     var body: some View {
@@ -30,9 +35,12 @@ struct LibraryView: View {
                         }
                     }
                 } else if filtered.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                    emptyResult
                 } else {
-                    list
+                    VStack(spacing: 0) {
+                        tagFilterBar
+                        list
+                    }
                 }
             }
             .navigationTitle("Biblioteca")
@@ -74,6 +82,40 @@ struct LibraryView: View {
             } message: {
                 Text("O áudio e a transcrição serão apagados deste iPhone.")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyResult: some View {
+        if let tag = navigation.libraryTag {
+            ContentUnavailableView {
+                Label("Nada com esta tag", systemImage: "tag")
+            } description: {
+                Text("Nenhuma gravação marcada com “\(tag)”.")
+            } actions: {
+                Button("Remover filtro") { navigation.libraryTag = nil }
+            }
+        } else {
+            ContentUnavailableView.search(text: query)
+        }
+    }
+
+    @ViewBuilder
+    private var tagFilterBar: some View {
+        if let tag = navigation.libraryTag {
+            HStack {
+                Button {
+                    navigation.libraryTag = nil
+                } label: {
+                    Label(tag, systemImage: "xmark.circle.fill")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel(Text("Remover o filtro da tag \(tag)"))
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 4)
         }
     }
 
