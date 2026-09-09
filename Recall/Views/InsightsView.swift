@@ -15,16 +15,28 @@ struct InsightsView: View {
         NavigationStack {
             Group {
                 if recordings.isEmpty {
-                    ContentUnavailableView {
-                        Label("Sem dados ainda", systemImage: "chart.bar")
-                    } description: {
-                        Text("Grave ou importe alguns áudios para ver seus números aqui.")
+                    VStack(spacing: 0) {
+                        ScreenHeader("Insights")
+                        VStack(spacing: 14) {
+                            Image(systemName: "chart.bar")
+                                .font(.system(size: 44, weight: .light))
+                                .foregroundStyle(Color.accentColor)
+                            Text("Sem dados ainda")
+                                .font(.system(.title2, design: .rounded, weight: .semibold))
+                            Text("Grave ou importe alguns áudios para ver seus números aqui.")
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(40)
+                        Spacer()
                     }
+                    .screenBackground()
                 } else {
                     content(for: metrics)
                 }
             }
-            .navigationTitle("Insights")
+            .navigationBarHidden(true)
         }
     }
 
@@ -32,12 +44,13 @@ struct InsightsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                Picker("Período", selection: $period) {
-                    ForEach(InsightsPeriod.allCases) { period in
-                        Text(period.title).tag(period)
-                    }
-                }
-                .pickerStyle(.segmented)
+                ScreenHeader("Insights", subtitle: subtitle(for: metrics))
+                    .padding(.horizontal, -Metrics.gutter)
+
+                PillPicker(
+                    options: InsightsPeriod.allCases.map { ($0, $0.title) },
+                    selection: $period
+                )
 
                 if metrics.isEmpty {
                     ContentUnavailableView {
@@ -66,6 +79,12 @@ struct InsightsView: View {
                 #endif
             }
         }
+    }
+
+    private func subtitle(for metrics: InsightsMetrics) -> String {
+        metrics.isEmpty
+            ? String(localized: "Nada neste período")
+            : String(localized: "\(metrics.totalRecordings) gravações no período")
     }
 
     private func summaryCards(_ metrics: InsightsMetrics) -> some View {
@@ -212,14 +231,14 @@ private struct StatCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.meta)
-                .foregroundStyle(.secondary)
             Text(value)
                 .font(.system(.title2, design: .rounded, weight: .semibold))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+            Text(title)
+                .font(.meta)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .surfaceCard(padding: 14)

@@ -31,22 +31,32 @@ struct LibraryView: View {
         NavigationStack(path: $path) {
             Group {
                 if recordings.isEmpty {
-                    emptyLibrary
+                    VStack(spacing: 0) {
+                        ScreenHeader("Biblioteca")
+                        emptyLibrary
+                        Spacer()
+                    }
+                    .screenBackground()
                 } else if filtered.isEmpty {
-                    emptyResult
+                    List {
+                        listHeader
+                        emptyResult
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                    .listStyle(.plain)
+                    .screenBackground()
                 } else {
                     timeline
                 }
             }
-            .navigationTitle("Biblioteca")
-            .searchable(text: $query, prompt: Text("Buscar"))
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Importar áudio", systemImage: "square.and.arrow.down") {
-                        isImporting = true
-                    }
-                    .buttonStyle(.glass)
+            .navigationBarHidden(true)
+            .task {
+                #if DEBUG
+                if LaunchOptions.opensFirstRecording, path.isEmpty, let first = recordings.first {
+                    path.append(first)
                 }
+                #endif
             }
             .navigationDestination(for: Recording.self) { RecordingDetailView(recording: $0) }
             .fileImporter(
@@ -84,8 +94,36 @@ struct LibraryView: View {
 
     // MARK: - Timeline
 
+    /// Header and search ride inside the list so they scroll with it, while the rows
+    /// keep their swipe actions.
+    @ViewBuilder
+    private var listHeader: some View {
+        ScreenHeader(title: "Biblioteca", subtitle: subtitle) {
+            Button("Importar áudio", systemImage: "square.and.arrow.down") { isImporting = true }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.glass)
+        }
+        .padding(.horizontal, -Metrics.gutter)
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: Metrics.gutter, bottom: 0, trailing: Metrics.gutter))
+
+        SearchField(text: $query)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 0, leading: Metrics.gutter, bottom: 12, trailing: Metrics.gutter))
+    }
+
+    private var subtitle: String {
+        let count = recordings.count
+        let total = recordings.reduce(0) { $0 + $1.duration }
+        return String(localized: "\(count) gravações · \(DurationFormat.clock(total))")
+    }
+
     private var timeline: some View {
         List {
+            listHeader
+
             if let tag = navigation.libraryTag {
                 Button {
                     navigation.libraryTag = nil
@@ -257,5 +295,41 @@ struct RecordingCard: View {
         }
         .padding(4)
         .contentShape(Rectangle())
+    }
+}
+
+/// Glass search pill. `.searchable` renders the system search bar, which is the most
+/// recognisably "stock iOS" chrome on the screen.
+private struct SearchField: View {
+    @Binding var text: String
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            TextField("Buscar por título, transcrição ou tag", text: $text)
+                .font(.system(.subheadline, design: .rounded))
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .submitLabel(.search)
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                    isFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Limpar busca"))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .glassEffect(.regular, in: Capsule())
     }
 }

@@ -31,6 +31,11 @@ enum LaunchOptions {
         ProcessInfo.processInfo.arguments.contains("-recall-autorecord")
     }
 
+    /// Opens the newest recording on the Biblioteca tab, for screenshots.
+    static var opensFirstRecording: Bool {
+        ProcessInfo.processInfo.arguments.contains("-recall-open-first")
+    }
+
     /// Section anchor the Insights tab scrolls to on appear, for screenshots.
     static var insightsAnchor: String? {
         let arguments = ProcessInfo.processInfo.arguments

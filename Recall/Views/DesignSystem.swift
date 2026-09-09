@@ -137,3 +137,122 @@ struct FlowLayout: Layout {
         }
     }
 }
+
+/// Big screen title, used instead of a stock navigation large title so every screen
+/// controls its own header.
+struct ScreenHeader<Trailing: View>: View {
+    let title: LocalizedStringKey
+    var subtitle: String?
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.screenTitle)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.meta)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 8)
+            trailing
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+    }
+}
+
+extension ScreenHeader where Trailing == EmptyView {
+    init(_ title: LocalizedStringKey, subtitle: String? = nil) {
+        self.init(title: title, subtitle: subtitle) { EmptyView() }
+    }
+}
+
+/// A titled group of rows on one card surface.
+struct CardGroup<Content: View>: View {
+    var title: LocalizedStringKey?
+    var footnote: LocalizedStringKey?
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let title {
+                Text(title)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 6)
+            }
+            VStack(spacing: 0) { content }
+                .surfaceCard(padding: 0)
+            if let footnote {
+                Text(footnote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+    }
+}
+
+/// One line inside a `CardGroup`: label on the left, anything on the right.
+struct CardRow<Trailing: View>: View {
+    let label: LocalizedStringKey
+    var showsDivider = true
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(label)
+                    .font(.system(.body, design: .rounded))
+                Spacer(minLength: 12)
+                trailing
+                    .font(.system(.body, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+
+            if showsDivider {
+                Divider().padding(.leading, 16)
+            }
+        }
+    }
+}
+
+/// Pill selector. The stock segmented control is the single most "system settings"
+/// looking element there is.
+struct PillPicker<Value: Hashable>: View {
+    let options: [(value: Value, title: String)]
+    @Binding var selection: Value
+    @Namespace private var namespace
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(options, id: \.value) { option in
+                let isSelected = option.value == selection
+                Button {
+                    withAnimation(.snappy(duration: 0.28)) { selection = option.value }
+                } label: {
+                    Text(option.title)
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background {
+                            if isSelected {
+                                Capsule()
+                                    .fill(Color.accentColor)
+                                    .matchedGeometryEffect(id: "pill", in: namespace)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .glassEffect(.regular, in: Capsule())
+    }
+}
